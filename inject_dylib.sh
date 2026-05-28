@@ -37,6 +37,7 @@ echo "[1/5] Compiling ModMenu.dylib..."
 clang -shared -o "$DYLIB_NAME" ModMenu.m \
     -framework UIKit \
     -framework Foundation \
+    -framework CoreGraphics \
     -install_name "@rpath/$DYLIB_NAME" \
     -arch arm64 \
     -miphoneos-version-min=14.0 \

@@ -25,6 +25,7 @@ jobs:
           clang -shared -o ModMenu.dylib ModMenu.m \
             -framework UIKit \
             -framework Foundation \
+            -framework CoreGraphics \
             -install_name "@rpath/ModMenu.dylib" \
             -arch arm64 \
             -miphoneos-version-min=14.0 \

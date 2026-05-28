@@ -1,0 +1,76 @@
+name: Build Mod Menu dylib
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Get iOS SDK path
+        id: sdk
+        run: echo "path=$(xcrun --sdk iphoneos --show-sdk-path)" >> $GITHUB_OUTPUT
+
+      - name: Compile ModMenu.dylib (arm64)
+        run: |
+          clang -shared -o ModMenu.dylib ModMenu.m \
+            -framework UIKit \
+            -framework Foundation \
+            -install_name "@rpath/ModMenu.dylib" \
+            -arch arm64 \
+            -miphoneos-version-min=14.0 \
+            -isysroot "${{ steps.sdk.outputs.path }}"
+          echo "Built: $(du -sh ModMenu.dylib)"
+
+      - name: Upload dylib artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ModMenu-dylib
+          path: ModMenu.dylib
+          retention-days: 30
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "BSD Mod Menu dylib v1.0.${{ github.run_number }}"
+          body: |
+            ## BSD Brawl Stars iOS Mod Menu
+
+            ### ModMenu.dylib
+            Compiled for **arm64** (iPhone/iPad).
+
+            ### How to inject
+            On macOS:
+            ```bash
+            # Install insert_dylib
+            brew install insert_dylib
+
+            # Run inject script
+            chmod +x inject_dylib.sh
+            ./inject_dylib.sh BrawlStars_67.264_iOS_MODDED.ipa
+            ```
+
+            ### Trigger
+            Triple-tap with **2 fingers** anywhere in-game to open the mod menu.
+
+            ### Mods included
+            - BSDCsvPatches — effects, music, themes
+            - LeonCloneMod
+            - SecretPinsMod
+            - OldRankSystemMod
+          files: ModMenu.dylib
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

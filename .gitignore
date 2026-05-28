@@ -1,0 +1,14 @@
+# Large game files - do not commit
+*.apk
+*.ipa
+*.dylib
+
+# Temp files
+temp_patch/
+bsd_ios_patch_*/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db

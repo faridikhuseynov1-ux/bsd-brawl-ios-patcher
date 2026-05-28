@@ -246,33 +246,50 @@ static void BSDShowMenu(void) {
 
 static BSDGestureDelegate *g_gestureDelegate = nil;
 
-static void BSDInstallGesture(void) {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        UIWindow *keyWindow = nil;
-        for (UIWindow *w in [UIApplication sharedApplication].windows) {
-            if (w.isKeyWindow) { keyWindow = w; break; }
+static void BSDTryInstallGesture(int attempt) {
+    UIWindow *keyWindow = nil;
+    for (UIWindow *w in [UIApplication sharedApplication].windows) {
+        if (w.isKeyWindow) { keyWindow = w; break; }
+    }
+    if (!keyWindow) {
+        if (attempt < 10) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                BSDTryInstallGesture(attempt + 1);
+            });
         }
-        if (!keyWindow) return;
+        return;
+    }
+    g_gestureDelegate = [BSDGestureDelegate new];
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:[NSBlockOperation blockOperationWithBlock:^{
+        if (g_menuVisible) return;
+        BSDShowMenu();
+    }] action:@selector(main)];
+    tap.numberOfTapsRequired = TRIGGER_TAP_COUNT;
+    tap.numberOfTouchesRequired = 2;
+    tap.delegate = g_gestureDelegate;
+    [keyWindow addGestureRecognizer:tap];
+    NSLog(@"[BSD] Mod menu installed (attempt %d). Triple-tap with 2 fingers to open.", attempt);
+}
 
-        g_gestureDelegate = [BSDGestureDelegate new];
-        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:[NSBlockOperation blockOperationWithBlock:^{
-            if (g_menuVisible) return;
-            BSDShowMenu();
-        }] action:@selector(main)];
-        tap.numberOfTapsRequired = TRIGGER_TAP_COUNT;
-        tap.numberOfTouchesRequired = 2;
-        tap.delegate = g_gestureDelegate;
-        [keyWindow addGestureRecognizer:tap];
-
-        NSLog(@"[BSD] Mod menu installed. Triple-tap with 2 fingers to open.");
+static void BSDInstallGesture(void) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        BSDTryInstallGesture(0);
     });
 }
 
 // ─── Constructor ─────────────────────────────────────────────────────────────
 __attribute__((constructor))
 static void BSDModInit(void) {
-    NSLog(@"[BSD] iOS Mod loaded - %@ v%@", MOD_NAME, MOD_VERSION);
-    dispatch_async(dispatch_get_main_queue(), ^{
-        BSDInstallGesture();
-    });
+    @try {
+        NSLog(@"[BSD] iOS Mod loaded - %@ v%@", MOD_NAME, MOD_VERSION);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            @try {
+                BSDInstallGesture();
+            } @catch (NSException *e) {
+                NSLog(@"[BSD] Gesture install error: %@", e);
+            }
+        });
+    } @catch (NSException *e) {
+        NSLog(@"[BSD] Init error: %@", e);
+    }
 }
